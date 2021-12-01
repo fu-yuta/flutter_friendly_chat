@@ -9,7 +9,6 @@ class ChatResponse {
     message = json['message'];
 }
 
-
 class ChatRequest {
   final String userName;
   final String message;
@@ -23,5 +22,16 @@ class ChatRequest {
     'message': message,
     'user_name': userName,
   };
+}
 
+class UpdateChatRequest {
+  final String message;
+
+  UpdateChatRequest({
+    this.message = "",
+  });
+
+  Map<String, dynamic> toJson() => {
+    'message': message,
+  };
 }
