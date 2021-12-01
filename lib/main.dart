@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -53,7 +52,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final List<ChatMessage> _messages = [];
   final FocusNode _focusNode = FocusNode();
   bool _isComposing = false;
-  final String chatUri = Platform.isAndroid ? 'http://10.0.2.2:8080/v1/chat/' : 'http://127.0.0.1:8080/v1/chat/';
+  final String chatUri = defaultTargetPlatform == TargetPlatform.android ? 'http://10.0.2.2:8080/v1/chat/' : 'http://127.0.0.1:8080/v1/chat/';
 
   @override
   void initState() {
