@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:friendly_chat/model/chat.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() {
   runApp(
@@ -49,6 +52,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final List<ChatMessage> _messages = [];
   final FocusNode _focusNode = FocusNode();
   bool _isComposing = false;
+  final Uri chatUri = Uri.parse('http://127.0.0.1:8080/v1/chat/');
+
+  @override
+  void initState() {
+    super.initState();
+    _getAllChatsRequester();
+  }
 
   @override
   void dispose() {
@@ -111,7 +121,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     _isComposing = text.isNotEmpty;
                   });
                 },
-                onSubmitted: _isComposing ? _handleSubmitted : null,
+                onSubmitted: _isComposing ? _postChatRequester : null,
                 decoration:
                   const InputDecoration.collapsed(hintText: "Send a message"),
                 focusNode: _focusNode,
@@ -123,12 +133,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               CupertinoButton(
                 child: const Text("Send"),
                 onPressed: _isComposing 
-                  ? () => _handleSubmitted(_textController.text) 
+                  ? () => _postChatRequester(_textController.text) 
                   : null,) : 
               IconButton(
                 icon: const Icon(Icons.send),
                 onPressed: _isComposing 
-                  ? () => _handleSubmitted(_textController.text) 
+                  ? () => _postChatRequester(_textController.text) 
                   : null,
               ),
             ),
@@ -155,6 +165,48 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     });
     _focusNode.requestFocus();
     message.animationController.forward();
+  }
+
+  void _getAllChatsRequester() async {
+    Map<String, String> headers = {
+      "Content-Type" : "application/json",
+    };
+
+    final response = await http.get(
+      chatUri, 
+      headers: headers);
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> decoded = json.decode(response.body);
+      _messages.clear();
+      if (decoded['chats'] != null) {
+        for (var item in decoded['chats']) {
+          _handleSubmitted(ChatResponse.fromJson(item).message);
+        }
+      }
+    } else {
+      throw Exception('Get All Chats Fail');
+    }
+  }
+
+  void _postChatRequester(String text) async {
+    Map<String, String> headers = {
+      "Content-Type" : "application/json",
+    };
+
+    var request = ChatRequest(userName: "Your Name", message: text);
+
+    final response = await http.post(
+      chatUri, 
+      body: json.encode(request.toJson()),
+      headers: headers);
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> decoded = json.decode(response.body);
+      _handleSubmitted(ChatResponse.fromJson(decoded).message);
+    } else {
+      throw Exception('Get All Chats Fail');
+    }
   }
 }
 
