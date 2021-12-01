@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -51,7 +53,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final List<ChatMessage> _messages = [];
   final FocusNode _focusNode = FocusNode();
   bool _isComposing = false;
-  final Uri chatUri = Uri.parse('http://127.0.0.1:8080/v1/chat/');
+  final String chatUri = Platform.isAndroid ? 'http://10.0.2.2:8080/v1/chat/' : 'http://127.0.0.1:8080/v1/chat/';
 
   @override
   void initState() {
@@ -181,7 +183,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       "Content-Type": "application/json",
     };
 
-    final response = await http.get(chatUri, headers: headers);
+    final response = await http.get(Uri.parse(chatUri), headers: headers);
 
     if (response.statusCode == 200) {
       Map<String, dynamic> decoded = json.decode(response.body);
@@ -204,7 +206,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     var request = ChatRequest(userName: "Your Name", message: text);
 
-    final response = await http.post(chatUri,
+    final response = await http.post(Uri.parse(chatUri),
         body: json.encode(request.toJson()), headers: headers);
 
     if (response.statusCode == 200) {
@@ -218,8 +220,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   void _deleteChatRequster(int index) async {
     var deleteMessage = _messages[index];
-    var deleteUri =
-        Uri.parse('http://127.0.0.1:8080/v1/chat/${deleteMessage.id}');
+    var deleteUri = Uri.parse(chatUri + deleteMessage.id.toString());
 
     Map<String, String> headers = {
       "Content-Type": "application/json",
