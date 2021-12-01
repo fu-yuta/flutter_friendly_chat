@@ -1,4 +1,3 @@
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -49,10 +48,14 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final _textController = TextEditingController();
+  final _updateTextController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final FocusNode _focusNode = FocusNode();
+  final FocusNode _updateFocusNode = FocusNode();
   bool _isComposing = false;
-  final String chatUri = defaultTargetPlatform == TargetPlatform.android ? 'http://10.0.2.2:8080/v1/chat/' : 'http://127.0.0.1:8080/v1/chat/';
+  final String chatUri = defaultTargetPlatform == TargetPlatform.android
+      ? 'http://10.0.2.2:8080/v1/chat/'
+      : 'http://127.0.0.1:8080/v1/chat/';
 
   @override
   void initState() {
@@ -86,7 +89,39 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   return Container(
                     child: Row(
                       children: [
-                        _messages[index],
+                        Expanded(
+                          child: InkWell(
+                            child: _messages[index],
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) {
+                                  return AlertDialog(
+                                    title: Text("${_messages[index].text}を変更しますか?"),
+                                    content: TextField(
+                                      controller: _updateTextController,
+                                      decoration:
+                                          const InputDecoration.collapsed(hintText: "Change a message"),
+                                      focusNode: _updateFocusNode,
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: Text("Cancel")
+                                      ),
+                                      TextButton(
+                                        onPressed: () => {
+                                          _updateChatRequester(index, _updateTextController.text),
+                                          Navigator.pop(context)
+                                        },
+                                        child: Text("OK")
+                                      ),
+                                    ],
+                                  );
+                                });
+                            },
+                          ),
+                        ),
                         IconButton(
                             onPressed: () => _deleteChatRequster(index),
                             icon: Icon(Icons.delete_rounded)),
@@ -157,7 +192,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _handleSubmitted(String text, int id) {
+  void _handleSubmitted(String text, int id, {int index = 0}) {
     _textController.clear();
     setState(() {
       _isComposing = false;
@@ -171,7 +206,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       ),
     );
     setState(() {
-      _messages.insert(0, message);
+      _messages.insert(index, message);
     });
     _focusNode.requestFocus();
     message.animationController.forward();
@@ -235,6 +270,33 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       throw Exception('Get All Chats Fail');
     }
   }
+
+  void _updateChatRequester(int index, String text) async {
+    var updateMessage = _messages[index];
+    var updateUri = Uri.parse(chatUri + updateMessage.id.toString());
+
+    Map<String, String> headers = {
+      "Content-Type": "application/json",
+    };
+
+    var request = UpdateChatRequest(message: text);
+
+    final response = await http.put(updateUri, body: json.encode(request.toJson()), headers: headers);
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> decoded = json.decode(response.body);
+      var chatResponse = ChatResponse.fromJson(decoded);
+      _updateTextController.clear();
+
+      setState(() {
+        // _messages[index].text = chatResponse.messageだと再描画されない?
+        _messages.removeAt(index);
+        _handleSubmitted(chatResponse.message, chatResponse.id, index: index);
+      });
+    } else {
+      throw Exception('Get All Chats Fail');
+    }
+  }
 }
 
 class ChatMessage extends StatelessWidget {
@@ -246,40 +308,38 @@ class ChatMessage extends StatelessWidget {
     required this.id,
     Key? key,
   }) : super(key: key);
-  final String text;
+  final text;
   final AnimationController animationController;
   final int id;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: SizeTransition(
-        sizeFactor:
-            CurvedAnimation(parent: animationController, curve: Curves.easeOut),
-        axisAlignment: 0.0,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 10.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(right: 16.0),
-                child: CircleAvatar(child: Text(_name[0])),
+    return SizeTransition(
+      sizeFactor:
+          CurvedAnimation(parent: animationController, curve: Curves.easeOut),
+      axisAlignment: 0.0,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(right: 16.0),
+              child: CircleAvatar(child: Text(_name[0])),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_name, style: Theme.of(context).textTheme.headline4),
+                  Container(
+                    margin: const EdgeInsets.only(top: 5.0),
+                    child: Text(text),
+                  ),
+                ],
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_name, style: Theme.of(context).textTheme.headline4),
-                    Container(
-                      margin: const EdgeInsets.only(top: 5.0),
-                      child: Text(text),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
