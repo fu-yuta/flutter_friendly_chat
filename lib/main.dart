@@ -18,9 +18,8 @@ final ThemeData kIOSTheme = ThemeData(
 );
 
 final ThemeData kDefaultTheme = ThemeData(
-  colorScheme: ColorScheme.fromSwatch(
-    primarySwatch: Colors.purple
-  ).copyWith(secondary: Colors.orangeAccent[400]),
+  colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.purple)
+      .copyWith(secondary: Colors.orangeAccent[400]),
 );
 
 class FrendlyChatApp extends StatelessWidget {
@@ -33,8 +32,8 @@ class FrendlyChatApp extends StatelessWidget {
     return MaterialApp(
       title: "FrendlyChat",
       theme: defaultTargetPlatform == TargetPlatform.iOS
-        ? kIOSTheme
-        : kDefaultTheme,
+          ? kIOSTheme
+          : kDefaultTheme,
       home: ChatScreen(),
     );
   }
@@ -82,26 +81,34 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               child: ListView.builder(
                 padding: const EdgeInsets.all(8.0),
                 reverse: true,
-                itemBuilder: (_, index) => _messages[index],
+                itemBuilder: (_, index) {
+                  return Container(
+                    child: Row(
+                      children: [
+                        _messages[index],
+                        IconButton(
+                            onPressed: () => _deleteChatRequster(index),
+                            icon: Icon(Icons.delete_rounded)),
+                      ],
+                    ),
+                  );
+                },
                 itemCount: _messages.length,
               ),
             ),
             const Divider(height: 1.0),
             Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor
-              ),
-              child: _buildTextComposer()
-            ),
+                decoration: BoxDecoration(color: Theme.of(context).cardColor),
+                child: _buildTextComposer()),
           ],
         ),
         decoration: Theme.of(context).platform == TargetPlatform.iOS
-          ? BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Colors.grey[200]!),
-              ),
-          )
-          : null,
+            ? BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.grey[200]!),
+                ),
+              )
+            : null,
       ),
     );
   }
@@ -123,24 +130,25 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 },
                 onSubmitted: _isComposing ? _postChatRequester : null,
                 decoration:
-                  const InputDecoration.collapsed(hintText: "Send a message"),
+                    const InputDecoration.collapsed(hintText: "Send a message"),
                 focusNode: _focusNode,
               ),
             ),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Theme.of(context).platform == TargetPlatform.iOS ?
-              CupertinoButton(
-                child: const Text("Send"),
-                onPressed: _isComposing 
-                  ? () => _postChatRequester(_textController.text) 
-                  : null,) : 
-              IconButton(
-                icon: const Icon(Icons.send),
-                onPressed: _isComposing 
-                  ? () => _postChatRequester(_textController.text) 
-                  : null,
-              ),
+              child: Theme.of(context).platform == TargetPlatform.iOS
+                  ? CupertinoButton(
+                      child: const Text("Send"),
+                      onPressed: _isComposing
+                          ? () => _postChatRequester(_textController.text)
+                          : null,
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: _isComposing
+                          ? () => _postChatRequester(_textController.text)
+                          : null,
+                    ),
             ),
           ],
         ),
@@ -148,13 +156,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _handleSubmitted(String text) {
+  void _handleSubmitted(String text, int id) {
     _textController.clear();
     setState(() {
       _isComposing = false;
     });
     var message = ChatMessage(
       text: text,
+      id: id,
       animationController: AnimationController(
         duration: const Duration(milliseconds: 700),
         vsync: this,
@@ -169,19 +178,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   void _getAllChatsRequester() async {
     Map<String, String> headers = {
-      "Content-Type" : "application/json",
+      "Content-Type": "application/json",
     };
 
-    final response = await http.get(
-      chatUri, 
-      headers: headers);
+    final response = await http.get(chatUri, headers: headers);
 
     if (response.statusCode == 200) {
       Map<String, dynamic> decoded = json.decode(response.body);
       _messages.clear();
       if (decoded['chats'] != null) {
         for (var item in decoded['chats']) {
-          _handleSubmitted(ChatResponse.fromJson(item).message);
+          var chatResponse = ChatResponse.fromJson(item);
+          _handleSubmitted(chatResponse.message, chatResponse.id);
         }
       }
     } else {
@@ -191,19 +199,38 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   void _postChatRequester(String text) async {
     Map<String, String> headers = {
-      "Content-Type" : "application/json",
+      "Content-Type": "application/json",
     };
 
     var request = ChatRequest(userName: "Your Name", message: text);
 
-    final response = await http.post(
-      chatUri, 
-      body: json.encode(request.toJson()),
-      headers: headers);
+    final response = await http.post(chatUri,
+        body: json.encode(request.toJson()), headers: headers);
 
     if (response.statusCode == 200) {
       Map<String, dynamic> decoded = json.decode(response.body);
-      _handleSubmitted(ChatResponse.fromJson(decoded).message);
+      var chatResponse = ChatResponse.fromJson(decoded);
+      _handleSubmitted(chatResponse.message, chatResponse.id);
+    } else {
+      throw Exception('Get All Chats Fail');
+    }
+  }
+
+  void _deleteChatRequster(int index) async {
+    var deleteMessage = _messages[index];
+    var deleteUri =
+        Uri.parse('http://127.0.0.1:8080/v1/chat/${deleteMessage.id}');
+
+    Map<String, String> headers = {
+      "Content-Type": "application/json",
+    };
+
+    final response = await http.delete(deleteUri, headers: headers);
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _messages.removeAt(index);
+      });
     } else {
       throw Exception('Get All Chats Fail');
     }
@@ -216,38 +243,43 @@ class ChatMessage extends StatelessWidget {
   ChatMessage({
     required this.text,
     required this.animationController,
+    required this.id,
     Key? key,
   }) : super(key: key);
   final String text;
   final AnimationController animationController;
+  final int id;
 
   @override
   Widget build(BuildContext context) {
-    return SizeTransition(
-      sizeFactor: CurvedAnimation(parent: animationController, curve: Curves.easeOut),
-      axisAlignment: 0.0,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 10.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(right: 16.0),
-              child: CircleAvatar(child: Text(_name[0])),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_name, style: Theme.of(context).textTheme.headline4),
-                  Container(
-                    margin: const EdgeInsets.only(top: 5.0),
-                    child: Text(text),
-                  ),
-                ],
+    return Expanded(
+      child: SizeTransition(
+        sizeFactor:
+            CurvedAnimation(parent: animationController, curve: Curves.easeOut),
+        axisAlignment: 0.0,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 10.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(right: 16.0),
+                child: CircleAvatar(child: Text(_name[0])),
               ),
-            ),
-          ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_name, style: Theme.of(context).textTheme.headline4),
+                    Container(
+                      margin: const EdgeInsets.only(top: 5.0),
+                      child: Text(text),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
