@@ -248,7 +248,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       var chatResponse = ChatResponse.fromJson(decoded);
       _handleSubmitted(chatResponse.message, chatResponse.id);
     } else {
-      throw Exception('Get All Chats Fail');
+      throw Exception('Post Chats Fail');
     }
   }
 
@@ -267,7 +267,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _messages.removeAt(index);
       });
     } else {
-      throw Exception('Get All Chats Fail');
+      throw Exception('Delete Chats Fail');
     }
   }
 
@@ -294,7 +294,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _handleSubmitted(chatResponse.message, chatResponse.id, index: index);
       });
     } else {
-      throw Exception('Get All Chats Fail');
+      throw Exception('Update Chats Fail');
     }
   }
 }
